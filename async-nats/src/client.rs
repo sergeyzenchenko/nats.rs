@@ -29,6 +29,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::trace;
 
 static VERSION_RE: Lazy<Regex> =
@@ -513,6 +514,20 @@ impl Client {
             .await?;
 
         Ok(Subscriber::new(sid, self.sender.clone(), receiver))
+    }
+
+    pub async fn subscribe_with_sender<S: ToSubject>(&self, subject: S, sender: Sender<Message>) -> Result<(), SubscribeError> {
+        let subject = subject.to_subject();
+        let sid = self.next_subscription_id.fetch_add(1, Ordering::Relaxed);
+
+        self.sender
+            .send(Command::Subscribe {
+                sid,
+                subject,
+                queue_group: None,
+                sender,
+            })
+            .await?;
     }
 
     /// Subscribes to a subject with a queue group to receive [messages][Message].
