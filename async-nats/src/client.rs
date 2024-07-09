@@ -528,6 +528,8 @@ impl Client {
                 sender,
             })
             .await?;
+
+        Ok(())
     }
 
     /// Subscribes to a subject with a queue group to receive [messages][Message].
