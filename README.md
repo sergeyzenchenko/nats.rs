@@ -1,29 +1,74 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nats-io/nats.rs/master/logo/NATS-Rust.png">
+  <img src="nats/logo/logo.svg">
 </p>
 
 <p align="center">
     A <a href="https://www.rust-lang.org/">Rust</a> client for the <a href="https://nats.io">NATS messaging system</a>.
 </p>
 
-## Status
+## Motivation
+
+Rust may be one of the most interesting new languages the NATS ecosystem has seen.
+We believe this client will have a large impact on NATS, distributed systems, and
+embedded and IoT environments. With Rust, we wanted to be as idiomatic as we
+could be and lean into the strengths of the language. We moved many things that
+would have been runtime checks and errors to the compiler, most notably options
+on connections, and having subscriptions generate multiple styles of iterators
+since iterators are first-class citizens in Rust. We also wanted to be aligned
+with the NATS philosophy of simple, secure, and fast!
+
+## Clients
+
+There are two clients available in two separate crates:
+
+### async-nats
+
+[![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Crates.io](https://img.shields.io/crates/v/async-nats.svg)](https://crates.io/crates/async-nats)
+[![Documentation](https://docs.rs/async-nats/badge.svg)](https://docs.rs/async-nats/)
+[![Build Status](https://github.com/nats-io/nats.rs/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nats-io/nats.rs/actions)
+
+Async Tokio-based NATS client.
+
+Supports:
+
+* Core NATS
+* JetStream API
+* JetStream Management API
+* Key Value Store
+* Object Store
+* Service API
+
+The API is stable, however it remains on 0.x.x versioning, as async ecosystem is still introducing a lot of ergonomic improvements. Some of our dependencies are also considered
+stable, yet versioned <1.0.0, like `rustls`, which might introduce breaking changes that can affect our users in some way.
+
+#### Feature flags
+
+Feature flags are Documented in `Cargo.toml` and can be viewed [here](https://docs.rs/crate/async-nats/latest/source/Cargo.toml.orig).
+
+### nats
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Crates.io](https://img.shields.io/crates/v/nats.svg)](https://crates.io/crates/nats)
 [![Documentation](https://docs.rs/nats/badge.svg)](https://docs.rs/nats/)
-[![Build Status](https://github.com/nats-io/nats.rs/workflows/Rust/badge.svg)](https://github.com/nats-io/nats.rs/actions)
+[![Build Status](https://github.com/nats-io/nats.rs/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nats-io/nats.rs/actions)
 
+Legacy *synchronous* client that supports:
 
-## Motivation
+* Core NATS
+* JetStream API
+* JetStream Management API
+* Key Value Store
+* Object Store
 
-Rust may be the most interesting new language the NATS ecosystem has seen. We
-believe this client will have a large impact on NATS, distributed systems, and
-embedded and IoT environments. With Rust we wanted to be as idiomatic as we
-could be and lean into the strengths of the language. We moved many things that
-would have been runtime checks and errors to the compiler, most notably options
-on connections, and having subscriptions generate multiple styles of iterators,
-since iterators are a first class citizen in Rust. We also wanted to be aligned
-with the NATS philosophy of simple, secure, and fast!
+This client does not get updates, unless those are security fixes.
+Please use the new `async-nats` crate.
+
+### Documentation
+
+Please refer each crate docs for API reference and examples.
+
+**Additionally Check out [NATS by example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
 
 ## Feedback
 
@@ -32,112 +77,3 @@ improve this library. Please open issues, submit PRs, etc. We're
 available in the `rust` channel on [the NATS slack](https://slack.nats.io)
 as well!
 
-## Example Usage
-
-`> cargo run --example nats-box -- -h`
-
-Basic connections, and those with options. The compiler will force these to be correct.
-
-```rust
-let nc = nats::connect("demo.nats.io")?;
-
-let nc2 = nats::Options::with_user_pass("derek", "s3cr3t!")
-    .with_name("My Rust NATS App")
-    .connect("127.0.0.1")?;
-
-let nc3 = nats::Options::with_credentials("path/to/my.creds")
-    .connect("connect.ngs.global")?;
-
-let nc4 = nats::Options::new()
-    .add_root_certificate("my-certs.pem")
-    .connect("tls://demo.nats.io:4443")?;
-```
-
-### Publish
-
-```rust
-nc.publish("my.subject", "Hello World!")?;
-
-nc.publish("my.subject", "my message")?;
-
-// Publish a request manually.
-let reply = nc.new_inbox();
-let rsub = nc.subscribe(&reply)?;
-nc.publish_request("my.subject", &reply, "Help me!")?;
-```
-
-### Subscribe
-
-```rust
-let sub = nc.subscribe("foo")?;
-for msg in sub.messages() {}
-
-// Using next.
-if let Some(msg) = sub.next() {}
-
-// Other iterators.
-for msg in sub.try_iter() {}
-for msg in sub.timeout_iter(Duration::from_secs(10)) {}
-
-// Using a threaded handler.
-let sub = nc.subscribe("bar")?.with_handler(move |msg| {
-    println!("Received {}", &msg);
-    Ok(())
-});
-
-// Queue subscription.
-let qsub = nc.queue_subscribe("foo", "my_group")?;
-```
-
-### Request/Response
-
-```rust
-let resp = nc.request("foo", "Help me?")?;
-
-// With a timeout.
-let resp = nc.request_timeout("foo", "Help me?", Duration::from_secs(2))?;
-
-// With multiple responses.
-for msg in nc.request_multi("foo", "Help")?.iter() {}
-
-// Publish a request manually.
-let reply = nc.new_inbox();
-let rsub = nc.subscribe(&reply)?;
-nc.publish_request("foo", &reply, "Help me!")?;
-let response = rsub.iter().take(1);
-```
-
-## Minimum Supported Rust Version (MSRV)
-
-The minimum supported Rust version is 1.40.0.
-
-## Sync vs Async
-
-The Rust ecosystem has a diverse set of options for async programming. This client library can be used with any async runtime out of the box, such as async-std and tokio.
-
-The sync interface provided by this library is implemented as just a thin wrapper around its async interface. Those two interface styles look very similar, and you're free to choose whichever works best for your application.
-
-## Features
-The following is a list of features currently supported and planned for the near future.
-
-* [X] Basic Publish/Subscribe
-* [X] Request/Reply - Singelton and Streams
-* [X] Authentication
-  * [X] Token
-  * [X] User/Password
-  * [X] Nkeys
-  * [X] User JWTs (NATS 2.0)
-* [X] Reconnect logic
-* [X] TLS support
-* [X] Direct async support
-* [X] Crates.io listing
-* [ ] Header Support
-
-### Miscellaneous TODOs
-* [ ] Ping timer
-* [X] msg.respond
-* [X] Drain mode
-* [ ] COW for received messages
-* [X] Sub w/ handler can't do iter()
-* [X] Backup servers for option
-* [X] Travis integration
